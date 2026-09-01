@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>携程国旅欧洲运营看板 V1 · 机位采购</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #f1f5f9; --bg-card: #ffffff; --border: #e2e8f0; --text: #1e293b; --text-dim: #64748b;
+  --accent: #2563eb; --accent-light: #3b82f6; --success: #059669; --warning: #d97706;
+  --danger: #dc2626; --purple: #7c3aed; --gold: #b45309; --cyan: #0891b2;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+}
+.header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+  border-bottom: 1px solid var(--border); padding: 24px 32px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-icon {
+  width: 48px; height: 48px; background: linear-gradient(135deg, var(--accent), var(--purple));
+  border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.header h1 {
+  font-size: 22px; font-weight: 700;
+  color: #ffffff;
+}
+.header .subtitle { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.badge {
+  padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700;
+  background: rgba(255,255,255,0.95); color: #1e293b;
+  border: 2px solid; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  text-shadow: none;
+}
+.badge-kong { border-color: #3b82f6; color: #1d4ed8; background: linear-gradient(135deg, #eff6ff, #dbeafe); }
+.badge-wang { border-color: #f59e0b; color: #b45309; background: linear-gradient(135deg, #fffbeb, #fef3c7); }
+.badge-total { border-color: #10b981; color: #047857; background: linear-gradient(135deg, #ecfdf5, #d1fae5); }
+
+.container { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
+
+.section-title {
+  font-size: 14px; font-weight: 600; color: var(--text-dim); margin: 24px 0 12px 4px;
+  display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.section-title::before { content: ''; width: 4px; height: 16px; background: var(--accent); border-radius: 2px; }
+
+.kpi-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 8px;
+}
+.kpi-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 20px;
+  position: relative; overflow: hidden; transition: transform 0.2s, border-color 0.2s;
+}
+.kpi-card:hover { transform: translateY(-2px); border-color: #94a3b8; }
+.kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.kpi-card.blue::before { background: linear-gradient(90deg, var(--accent), var(--accent-light)); }
+.kpi-card.green::before { background: linear-gradient(90deg, var(--success), #34d399); }
+.kpi-card.gold::before { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+.kpi-card.purple::before { background: linear-gradient(90deg, var(--purple), #a78bfa); }
+.kpi-card.cyan::before { background: linear-gradient(90deg, var(--cyan), #22d3ee); }
+.kpi-card.red::before { background: linear-gradient(90deg, var(--danger), #f87171); }
+.kpi-label { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+.kpi-value { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+.kpi-card.blue .kpi-value { color: var(--accent-light); }
+.kpi-card.green .kpi-value { color: var(--success); }
+.kpi-card.gold .kpi-value { color: var(--warning); }
+.kpi-card.purple .kpi-value { color: var(--purple); }
+.kpi-card.cyan .kpi-value { color: var(--cyan); }
+.kpi-card.red .kpi-value { color: var(--danger); }
+.kpi-unit { font-size: 13px; font-weight: 500; color: var(--text-dim); margin-left: 3px; }
+.kpi-desc { font-size: 11px; color: #64748b; margin-top: 5px; }
+
+.summary-bar {
+  background: linear-gradient(90deg, rgba(37,99,235,0.06), rgba(217,119,6,0.06));
+  border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+}
+.summary-item { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.summary-item .label { color: var(--text-dim); }
+.summary-item .value { font-weight: 700; color: var(--text); }
+.summary-dot { width: 8px; height: 8px; border-radius: 50%; }
+.summary-dot.kong { background: var(--accent); }
+.summary-dot.wang { background: var(--warning); }
+.summary-dot.tax { background: var(--danger); }
+
+.owner-row {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 8px;
+}
+@media (max-width: 900px) { .owner-row { grid-template-columns: 1fr; } }
+.owner-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px;
+  position: relative; overflow: hidden;
+}
+.owner-card.kong { border-left: 4px solid var(--accent); }
+.owner-card.wang { border-left: 4px solid var(--warning); }
+.owner-card .owner-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 8px;
+}
+.owner-card .owner-name {
+  font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;
+}
+.owner-card.kong .owner-name { color: var(--accent-light); }
+.owner-card.wang .owner-name { color: var(--warning); }
+.owner-card .owner-tag {
+  font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 600;
+}
+.owner-card.kong .owner-tag { background: rgba(59,130,246,0.12); color: var(--accent-light); }
+.owner-card.wang .owner-tag { background: rgba(245,158,11,0.12); color: var(--warning); }
+.owner-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+.owner-stat { text-align: center; padding: 12px 8px; background: #f8fafc; border-radius: 10px; }
+.owner-stat-value { font-size: 20px; font-weight: 700; }
+.owner-stat-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.owner-stat-sublabel { font-size: 10px; color: #475569; margin-top: 2px; }
+.owner-divider { height: 1px; background: var(--border); margin: 16px 0; }
+.owner-directions { display: flex; flex-wrap: wrap; gap: 6px; }
+.owner-dir-tag {
+  font-size: 11px; padding: 3px 10px; border-radius: 6px;
+  background: #f1f5f9; border: 1px solid var(--border); color: #475569;
+}
+
+.chart-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px; margin-bottom: 16px;
+}
+.chart-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px;
+}
+.chart-title {
+  font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+}
+.chart-title .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.chart-container { width: 100%; height: 300px; }
+.chart-full {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px;
+}
+.chart-full .chart-container { height: 360px; }
+
+.price-bins { display: flex; gap: 8px; flex-wrap: wrap; }
+.price-bin {
+  flex: 1; min-width: 110px; background: #f8fafc; border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 10px; text-align: center;
+}
+.price-bin-count { font-size: 20px; font-weight: 700; color: var(--accent-light); }
+.price-bin-k { font-size: 12px; color: #647569; margin-top: 2px; }
+.price-bin-range { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+.table-section {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 20px; margin-bottom: 16px;
+}
+.table-header {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
+}
+.filter-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filter-group select, .filter-group input {
+  background: #ffffff; border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+  padding: 7px 12px; font-size: 13px; outline: none;
+}
+.filter-group select:focus, .filter-group input:focus { border-color: var(--accent); }
+.filter-group button {
+  background: var(--accent); border: none; border-radius: 8px; color: #fff;
+  padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600; transition: opacity 0.2s;
+}
+.filter-group button:hover { opacity: 0.85; }
+
+.table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead { background: #f1f5f9; }
+th {
+  padding: 12px 14px; text-align: left; font-weight: 600; color: #475569;
+  border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none;
+  position: sticky; top: 0; background: #f1f5f9; z-index: 2;
+}
+th:hover { color: var(--text); }
+th .sort-indicator { margin-left: 4px; font-size: 10px; color: #94a3b8; }
+th.sort-asc .sort-indicator::after { content: '▲'; color: var(--accent); }
+th.sort-desc .sort-indicator::after { content: '▼'; color: var(--accent); }
+td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; color: #334155;
+}
+tbody tr:hover { background: #f8fafc; }
+tbody tr:last-child td { border-bottom: none; }
+.tag {
+  display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+}
+.tag-kong { background: rgba(59,130,246,0.12); color: var(--accent-light); }
+.tag-wang { background: rgba(245,158,11,0.12); color: var(--warning); }
+.tag-direction { background: rgba(16,185,129,0.1); color: var(--success); }
+.tag-airline { background: rgba(139,92,246,0.1); color: var(--purple); }
+.tag-city { background: rgba(6,182,212,0.1); color: var(--cyan); }
+.tag-tax { background: rgba(239,68,68,0.1); color: var(--danger); font-size: 10px; }
+.num { font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; font-variant-numeric: tabular-nums; }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; }
+.pagination button {
+  background: #ffffff; border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+  padding: 5px 12px; font-size: 12px; cursor: pointer;
+}
+.pagination button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination .page-info { font-size: 12px; color: var(--text-dim); }
+
+.calendar-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.calendar-tab {
+  padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--border); background: #f8fafc; color: #475569;
+  transition: all 0.2s;
+}
+.calendar-tab:hover { background: #e2e8f0; }
+.calendar-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.calendar-subtabs { display: flex; gap: 6px; margin-bottom: 12px; align-items: center; }
+.calendar-subtabs::before { content: '按'; font-size: 12px; color: #94a3b8; margin-right: 2px; }
+.calendar-subtab { font-size: 12px; padding: 3px 10px; border-radius: 12px; cursor: pointer; border: 1px solid var(--border); background: #f8fafc; color: #64748b; transition: all 0.2s; }
+.calendar-subtab:hover { background: #e2e8f0; }
+.calendar-subtab.active { background: var(--success); color: #fff; border-color: var(--success); }
+
+.calendar-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
+}
+.calendar-header {
+  text-align: center; font-size: 12px; font-weight: 600; color: #94a3b8;
+  padding: 8px 0; text-transform: uppercase;
+}
+.calendar-day {
+  background: #f8fafc; border: 1px solid var(--border); border-radius: 10px;
+  min-height: 90px; padding: 8px; display: flex; flex-direction: column; gap: 4px;
+}
+.calendar-day.empty { background: transparent; border: none; }
+.calendar-day-number {
+  font-size: 14px; font-weight: 700; color: var(--text); width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center; border-radius: 50%;
+}
+.calendar-day.today .calendar-day-number { background: var(--accent); color: #fff; }
+.calendar-day-directions { display: flex; flex-direction: column; gap: 2px; }
+.calendar-dir-row {
+  display: flex; align-items: center; gap: 4px; font-size: 11px;
+}
+.calendar-dir-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.calendar-dir-name { color: #64748b; }
+.calendar-dir-k { font-weight: 700; color: var(--text); font-family: 'SF Mono', monospace; font-size: 11px; }
+.calendar-day-total { font-size: 10px; font-weight: 600; color: var(--success); margin-bottom: 2px; font-family: 'SF Mono', monospace; }
+
+.target-hero {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+  border-radius: 16px; padding: 28px 32px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 32px; flex-wrap: wrap; color: #fff;
+}
+.target-hero-left { flex: 1; min-width: 140px; }
+.target-hero-label { font-size: 13px; opacity: 0.8; margin-bottom: 4px; }
+.target-hero-num { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+.target-hero-unit { font-size: 14px; opacity: 0.7; margin-left: 4px; }
+.target-hero-sub { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+.target-hero-arrow { font-size: 28px; opacity: 0.4; font-weight: 300; }
+.target-hero-mid { flex: 1; min-width: 140px; }
+.target-hero-bar-wrap { flex: 2; min-width: 200px; }
+.target-hero-rate { font-size: 32px; font-weight: 800; text-align: right; margin-bottom: 6px; }
+.target-hero-progress { height: 10px; background: rgba(255,255,255,0.2); border-radius: 5px; overflow: hidden; }
+.target-hero-bar { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #34d399, #10b981); transition: width 1.2s ease; }
+.target-hero-remain { text-align: right; font-size: 12px; opacity: 0.7; margin-top: 6px; }
+
+.target-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.target-item { background: #ffffff; border: 1px solid var(--border); border-radius: 14px; padding: 20px; position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+.target-item:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+.target-item::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; }
+.target-item.good::before { background: var(--success); }
+.target-item.warn::before { background: var(--warning); }
+.target-item.bad::before { background: var(--danger); }
+.target-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.target-item-name { font-size: 15px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.target-item-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.target-item-badge.ok { background: rgba(16,185,129,0.1); color: var(--success); }
+.target-item-badge.warn { background: rgba(217,119,6,0.1); color: var(--warning); }
+.target-item-badge.bad { background: rgba(220,38,38,0.1); color: var(--danger); }
+.target-item-body { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; }
+.target-item-actual { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
+.target-item-actual span { font-size: 13px; font-weight: 500; color: var(--text-dim); margin-left: 2px; }
+.target-item-gap { font-size: 14px; font-weight: 700; color: var(--danger); text-align: right; }
+.target-item-gap.ok { color: var(--success); }
+.target-item-gap-label { font-size: 11px; color: #94a3b8; }
+.target-progress { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+.target-progress-bar { height: 100%; border-radius: 3px; transition: width 1s ease; }
+.target-item-footer { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; }
+.target-item-footer .num { font-weight: 700; color: #475569; }
+
+.dir-month-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.dir-month-tab { padding: 6px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: #f8fafc; color: #475569; transition: all 0.2s; }
+.dir-month-tab:hover { background: #e2e8f0; }
+.dir-month-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.dir-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
+.dir-card { background: #ffffff; border: 2px solid var(--border); border-radius: 14px; padding: 20px 16px; text-align: center; transition: all 0.2s; position: relative; overflow: hidden; }
+.dir-card:hover { transform: translateY(-3px); border-color: #94a3b8; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.dir-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--accent), var(--accent-light)); }
+.dir-card-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.dir-card-num { font-size: 36px; font-weight: 800; color: var(--accent); line-height: 1; letter-spacing: -1px; }
+.dir-card-unit { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+.dir-card-total { font-size: 11px; color: #94a3b8; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+
+.footer { text-align: center; padding: 20px; font-size: 11px; color: #475569; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon">&#9992;</div>
+    <div>
+      <h1>2027年欧洲机位资源采购看板</h1>
+      <div class="subtitle">携程国旅 &middot; 欧洲业务 &middot; 机位采购全景监控 | 数据校验通过 | 2026-08-31</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="badge badge-total">合计 168团</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="section-title">区域采购</div>
+  <div class="chart-full">
+    <div class="chart-title"><span class="dot" style="background:var(--accent);"></span>各方向采购量 — 按月切换</div>
+    <div class="dir-month-tabs" id="dirMonthTabs"></div>
+    <div class="dir-cards" id="dirCards"></div>
+  </div>
+
+  <div class="section-title">出团日历</div>
+  <div class="chart-full">
+    <div class="chart-title"><span class="dot" style="background:var(--success);"></span>按月查看出团日期 &amp; 区域机位分布</div>
+    <div class="calendar-tabs" id="calendarTabs"></div>
+    <div class="calendar-subtabs" id="calendarSubTabs"></div>
+    <div class="calendar-panel" id="calendarPanel"></div>
+  </div>
+
+  <div class="section-title">采购明细</div>
+  <div class="table-section">
+    <div class="table-header">
+      <div class="chart-title"><span class="dot" style="background:var(--gold);"></span>全量明细 (168团)</div>
+      <div class="filter-group">
+        <select id="filterOwner"><option value="">全部归属人</option><option value="孔艾珊">孔艾珊</option><option value="王瑀">王瑀</option></select>
+        <select id="filterDirection"><option value="">全部方向</option></select>
+        <select id="filterMonth"><option value="">全部月份</option></select>
+        <select id="filterAirline"><option value="">全部航司</option></select>
+        <input type="text" id="filterSearch" placeholder="搜索 产品线/备注/供应商..." style="width:180px;">
+        <button onclick="resetFilters()">重置</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('归属人')">归属人<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('方向')">方向<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('产品线')">产品线<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('出发日期')">出发日期<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('出团月份')">出团月份<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('回团日期')">回团日期<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('进出点晚数')">航线<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('航司')">航司<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('出发城市')">出发<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('K位数')" style="text-align:right;">K位数<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('价格')" style="text-align:right;">价格<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('税金')" style="text-align:right;">税金<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('合计')" style="text-align:right;">合计<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('供应商')">供应商<span class="sort-indicator"></span></th>
+            <th onclick="sortTable('采购渠道')">渠道<span class="sort-indicator"></span></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <button onclick="changePage(-1)" id="btnPrev">上一页</button>
+      <span class="page-info">第 <span id="pageCurrent">1</span> / <span id="pageTotal">1</span> 页</span>
+      <button onclick="changePage(1)" id="btnNext">下一页</button>
+      <span class="page-info" id="recordsInfo">共 0 条</span>
+    </div>
+  </div>
+
+  <div class="section-title">目标追踪 — 国旅H1</div>
+  <div class="target-hero">
+    <div class="target-hero-left">
+      <div class="target-hero-label">H1 人头目标</div>
+      <div class="target-hero-num">3,200<span class="target-hero-unit">个</span></div>
+      <div class="target-hero-sub">2027年上半年</div>
+    </div>
+    <div class="target-hero-arrow">→</div>
+    <div class="target-hero-mid">
+      <div class="target-hero-label">已采购</div>
+      <div class="target-hero-num" style="color:var(--success)">4,622<span class="target-hero-unit">个</span></div>
+      <div class="target-hero-sub">占比 144.4%</div>
+    </div>
+    <div class="target-hero-bar-wrap">
+      <div class="target-hero-rate">144.4%</div>
+      <div class="target-hero-progress">
+        <div class="target-hero-bar" style="width:100%"></div>
+      </div>
+      <div class="target-hero-remain">+1,422个 (超额)</div>
+    </div>
+  </div>
+
+  <div class="target-grid">
+    
+    <div class="target-item good">
+      <div class="target-item-header">
+        <div class="target-item-name">西欧</div>
+        <div class="target-item-badge ok">已达标</div>
+      </div>
+      <div class="target-item-body">
+        <div class="target-item-actual">2,244<span>个</span></div>
+        <div>
+          <div class="target-item-gap ok">+644</div>
+          <div class="target-item-gap-label">vs 目标 1,600</div>
+        </div>
+      </div>
+      <div class="target-progress">
+        <div class="target-progress-bar" style="width:100%; background:var(--success)"></div>
+      </div>
+      <div class="target-item-footer">
+        <span>目标 <span class="num">1,600</span></span>
+        <span>完成率 <span class="num">140.2%</span></span>
+      </div>
+    </div>
+    
+    <div class="target-item good">
+      <div class="target-item-header">
+        <div class="target-item-name">南欧</div>
+        <div class="target-item-badge ok">已达标</div>
+      </div>
+      <div class="target-item-body">
+        <div class="target-item-actual">842<span>个</span></div>
+        <div>
+          <div class="target-item-gap ok">+394</div>
+          <div class="target-item-gap-label">vs 目标 448</div>
+        </div>
+      </div>
+      <div class="target-progress">
+        <div class="target-progress-bar" style="width:100%; background:var(--success)"></div>
+      </div>
+      <div class="target-item-footer">
+        <span>目标 <span class="num">448</span></span>
+        <span>完成率 <span class="num">187.9%</span></span>
+      </div>
+    </div>
+    
+    <div class="target-item good">
+      <div class="target-item-header">
+        <div class="target-item-name">英爱</div>
+        <div class="target-item-badge ok">已达标</div>
+      </div>
+      <div class="target-item-body">
+        <div class="target-item-actual">319<span>个</span></div>
+        <div>
+          <div class="target-item-gap ok">+31</div>
+          <div class="target-item-gap-label">vs 目标 288</div>
+        </div>
+      </div>
+      <div class="target-progress">
+        <div class="target-progress-bar" style="width:100%; background:var(--success)"></div>
+      </div>
+      <div class="target-item-footer">
+        <span>目标 <span class="num">288</span></span>
+        <span>完成率 <span class="num">110.8%</span></span>
+      </div>
+    </div>
+    
+    <div class="target-item good">
+      <div class="target-item-header">
+        <div class="target-item-name">北欧</div>
+        <div class="target-item-badge ok">已达标</div>
+      </div>
+      <div class="target-item-body">
+        <div class="target-item-actual">360<span>个</span></div>
+        <div>
+          <div class="target-item-gap ok">+40</div>
+          <div class="target-item-gap-label">vs 目标 320</div>
+        </div>
+      </div>
+      <div class="target-progress">
+        <div class="target-progress-bar" style="width:100%; background:var(--success)"></div>
+      </div>
+      <div class="target-item-footer">
+        <span>目标 <span class="num">320</span></span>
+        <span>完成率 <span class="num">112.5%</span></span>
+      </div>
+    </div>
+    
+    <div class="target-item good">
+      <div class="target-item-header">
+        <div class="target-item-name">东欧+巴尔干</div>
+        <div class="target-item-badge ok">已达标</div>
+      </div>
+      <div class="target-item-body">
+        <div class="target-item-actual">399<span>个</span></div>
+        <div>
+          <div class="target-item-gap ok">+143</div>
+          <div class="target-item-gap-label">vs 目标 256</div>
+        </div>
+      </div>
+      <div class="target-progress">
+        <div class="target-progress-bar" style="width:100%; background:var(--success)"></div>
+      </div>
+      <div class="target-item-footer">
+        <span>目标 <span class="num">256</span></span>
+        <span>完成率 <span class="num">155.9%</span></span>
+      </div>
+    </div>
+    
+    <div class="target-item good">
+      <div class="target-item-header">
+        <div class="target-item-name">俄罗斯</div>
+        <div class="target-item-badge ok">已达标</div>
+      </div>
+      <div class="target-item-body">
+        <div class="target-item-actual">431<span>个</span></div>
+        <div>
+          <div class="target-item-gap ok">+143</div>
+          <div class="target-item-gap-label">vs 目标 288</div>
+        </div>
+      </div>
+      <div class="target-progress">
+        <div class="target-progress-bar" style="width:100%; background:var(--success)"></div>
+      </div>
+      <div class="target-item-footer">
+        <span>目标 <span class="num">288</span></span>
+        <span>完成率 <span class="num">149.7%</span></span>
+      </div>
+    </div>
+    
+  </div>
+
+  <div class="section-title">趋势分析</div>
+  <div class="chart-full">
+    <div class="chart-title"><span class="dot" style="background:var(--accent);"></span>月度采购趋势 &mdash; K位数 + 采购金额</div>
+    <div id="chartMonth" class="chart-container" style="height:360px;"></div>
+  </div>
+
+  <div class="chart-full">
+    <div class="chart-title"><span class="dot" style="background:var(--purple);"></span>月度方向分布 &mdash; 各方向K位数堆叠</div>
+    <div id="chartMonthDir" class="chart-container" style="height:360px;"></div>
+  </div>
+
+  <div class="section-title">成本分析</div>
+  <div class="chart-full">
+    <div class="chart-title"><span class="dot" style="background:var(--danger);"></span>采购价格区间分布 &mdash; 按合计金额分档</div>
+    <div class="dir-month-tabs" id="priceMonthTabs"></div>
+    <div class="dir-month-tabs" id="priceDirTabs" style="margin-top:8px;"></div>
+    <div class="price-bins" id="priceBins"></div>
+    <div id="chartPrice" class="chart-container" style="height:280px;margin-top:16px;"></div>
+  </div>
+
+  <div class="footer">
+    数据来源：2027年欧洲机位表-多维表格.xlsx | 仅展示归属人孔艾珊、王瑀的采购数据 | 合计 = 价格 + 税金 (168/168验证通过)
+  </div>
+
+</div>
+
+<script>
+const RAW_DATA = [{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-01-10","出发月份":"2027-01","回团日期":"2027-01-21","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS267070RU","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-01-11","出发月份":"2027-01","回团日期":"2027-01-22","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":21,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS26707075","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-01-15","出发月份":"2027-01","回团日期":"2027-01-25","进出点晚数":"BCN-MAD-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2300.0,"税金":3100.0,"合计":5400.0,"供应商":"国航系列","备注":"IBJS267070AC","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-01-15","出发月份":"2027-01","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":21,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS2670708X","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-01-15","出发月份":"2027-01","回团日期":"","进出点晚数":"FCO-CDG-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2600.0,"税金":0,"合计":2600.0,"供应商":"国航系列","备注":"IBJS2670905A","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-01-16","出发月份":"2027-01","回团日期":"","进出点晚数":"BUD-VIE-10N","航司":"CA","出发城市":"PEK","K位数":21,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS2670704O","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯","出发日期":"2027-01-17","出发月份":"2027-01","回团日期":"2027-01-28","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2500.0,"税金":0,"合计":2500.0,"供应商":"国航系列","备注":"IBJS267070RB","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-01-18","出发月份":"2027-01","回团日期":"2027-01-28","进出点晚数":"BCN-MAD-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2650.0,"税金":3100.0,"合计":5750.0,"供应商":"国航系列","备注":"IBJS267070AE","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-01-23","出发月份":"2027-01","回团日期":"","进出点晚数":"SVO-7N","航司":"CA","出发城市":"PEK","K位数":27,"价格":1200.0,"税金":0,"合计":1200.0,"供应商":"国航系列","备注":"IBJS26707091","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"北欧","产品线":"","出发日期":"2027-01-23","出发月份":"2027-01","回团日期":"","进出点晚数":"ARN-CPH-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2200.0,"税金":3750.0,"合计":5950.0,"供应商":"国航系列","备注":"IBJS2681904P","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-01-25","出发月份":"2027-01","回团日期":"2027-02-04","进出点晚数":"BCN-MAD-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2650.0,"税金":3100.0,"合计":5750.0,"供应商":"国航系列","备注":"IBJS267070AD","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"北欧","产品线":"","出发日期":"2027-01-26","出发月份":"2027-01","回团日期":"","进出点晚数":"ARN-CPH-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":2200.0,"税金":3750.0,"合计":5950.0,"供应商":"国航系列","备注":"IBJS2681904Q","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-01-27","出发月份":"2027-01","回团日期":"2027-02-07","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2500.0,"税金":0,"合计":2500.0,"供应商":"国航系列","备注":"IBJS267070RW","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"","出发日期":"2027-01-27","出发月份":"2027-01","回团日期":"2027-02-08","进出点晚数":"FCO-CDG-11N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS267070OW","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"携程","方向":"英国","产品线":"","出发日期":"2027-01-27","出发月份":"2027-01","回团日期":"","进出点晚数":"LHR-8N","航司":"CA","出发城市":"PEK","K位数":17,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS26707083","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-01-27","出发月份":"2027-01","回团日期":"","进出点晚数":"SVO-7N","航司":"CA","出发城市":"PEK","K位数":27,"价格":1200.0,"税金":0,"合计":1200.0,"供应商":"国航系列","备注":"IBJS26707092","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"探秘","出发日期":"2027-01-29","出发月份":"2027-01","回团日期":"2027-02-08","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2650.0,"税金":3050.0,"合计":5700.0,"供应商":"国航系列","备注":"IBJS267070GF","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯","出发日期":"2027-01-30","出发月份":"2027-01","回团日期":"2027-02-10","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3700.0,"税金":0,"合计":3700.0,"供应商":"国航系列","备注":"IBJS267070OC","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"云巅","出发日期":"2027-01-30","出发月份":"2027-01","回团日期":"2027-02-10","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3700.0,"税金":0,"合计":3700.0,"供应商":"国航系列","备注":"IBJS267070S1","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"云巅","出发日期":"2027-01-30","出发月份":"2027-01","回团日期":"2027-02-10","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3700.0,"税金":0,"合计":3700.0,"供应商":"国航系列","备注":"IBJS267070S2","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-01-31","出发月份":"2027-01","回团日期":"","进出点晚数":"VIE-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS2670709R","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"东欧","产品线":"圆梦帝国","出发日期":"2027-01-31","出发月份":"2027-01","回团日期":"","进出点晚数":"BUD-VIE-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3150.0,"税金":0,"合计":3150.0,"供应商":"国航系列","备注":"IBJS26819023","票务对接人":"尹航","出团月份":"2027-01"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"瑞不可挡贴牌 26机位","出发日期":"2027-02-01","出发月份":"2027-02","回团日期":"","进出点晚数":"FCO-CDG-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":4300.0,"税金":0,"合计":4300.0,"供应商":"国航系列","备注":"IBJS2681902A","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯  26机位","出发日期":"2027-02-01","出发月份":"2027-02","回团日期":"","进出点晚数":"CDG-FCO-11N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3700.0,"税金":0,"合计":3700.0,"供应商":"国航系列","备注":"IBJS2681903T","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-02-01","出发月份":"2027-02","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3600.0,"税金":0,"合计":3600.0,"供应商":"国航系列","备注":"IBJS26820030","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-02-02","出发月份":"2027-02","回团日期":"","进出点晚数":"SVO-7N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2500.0,"税金":0,"合计":2500.0,"供应商":"国航系列","备注":"IBJS26707093","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-02-02","出发月份":"2027-02","回团日期":"","进出点晚数":"IKT-7N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2400.0,"税金":0,"合计":2400.0,"供应商":"国航系列","备注":"IBJS26714003","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"英国","产品线":"","出发日期":"2027-02-02","出发月份":"2027-02","回团日期":"","进出点晚数":"LHR-8N","航司":"CA","出发城市":"PEK","K位数":18,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2681903Y","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"云巅","出发日期":"2027-02-03","出发月份":"2027-02","回团日期":"2027-02-14","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3700.0,"税金":0,"合计":3700.0,"供应商":"国航系列","备注":"IBJS267070RN","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯  26机位","出发日期":"2027-02-03","出发月份":"2027-02","回团日期":"","进出点晚数":"CDG-FCO-11N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3700.0,"税金":0,"合计":3700.0,"供应商":"国航系列","备注":"IBJS2681903X","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"","出发日期":"2027-02-03","出发月份":"2027-02","回团日期":"","进出点晚数":"BCN-MAD-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":4200.0,"税金":3100.0,"合计":7300.0,"供应商":"国航系列","备注":"IBJS2681903L","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"","出发日期":"2027-02-06","出发月份":"2027-02","回团日期":"","进出点晚数":"BCN-MAD-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2300.0,"税金":3100.0,"合计":5400.0,"供应商":"国航系列","备注":"IBJS2682002N","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-02-06","出发月份":"2027-02","回团日期":"","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS2682003G","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"东欧","产品线":"圆梦帝国","出发日期":"2027-02-07","出发月份":"2027-02","回团日期":"","进出点晚数":"BUD-VIE-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":1800.0,"税金":0,"合计":1800.0,"供应商":"国航系列","备注":"IBJS26819027","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-02-08","出发月份":"2027-02","回团日期":"2027-02-18","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS267070GG","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-02-08","出发月份":"2027-02","回团日期":"2027-02-19","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS267070S4","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-02-08","出发月份":"2027-02","回团日期":"","进出点晚数":"FCO-CDG-11N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2600.0,"税金":0,"合计":2600.0,"供应商":"国航系列","备注":"IBJS26707078","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-02-08","出发月份":"2027-02","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS2670708S","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-02-08","出发月份":"2027-02","回团日期":"","进出点晚数":"SVO-7N","航司":"CA","出发城市":"PEK","K位数":27,"价格":1000.0,"税金":0,"合计":1000.0,"供应商":"国航系列","备注":"IBJS26707090","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-02-08","出发月份":"2027-02","回团日期":"","进出点晚数":"IKT-7N","航司":"CA","出发城市":"PEK","K位数":20,"价格":1200.0,"税金":0,"合计":1200.0,"供应商":"国航系列","备注":"IBJS26707082","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"","出发日期":"2027-02-11","出发月份":"2027-02","回团日期":"","进出点晚数":"BCN-MAD-12N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2300.0,"税金":3100.0,"合计":5400.0,"供应商":"国航系列","备注":"IBJS2670905I","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"北欧","产品线":"","出发日期":"2027-02-11","出发月份":"2027-02","回团日期":"","进出点晚数":"KEF-CPH-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2650.0,"税金":0,"合计":2650.0,"供应商":"国航系列","备注":"IBJS2681902G","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-02-12","出发月份":"2027-02","回团日期":"2027-02-22","进出点晚数":"BCN-MAD-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2300.0,"税金":3100.0,"合计":5400.0,"供应商":"国航系列","备注":"IBJS267070AI","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-02-20","出发月份":"2027-02","回团日期":"2027-03-02","进出点晚数":"BCN-MAD-9N","航司":"CA-WUH","出发城市":"PEK","K位数":31,"价格":2300.0,"税金":3100.0,"合计":5400.0,"供应商":"武汉国航","备注":"IWUH2670704L","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-02-20","出发月份":"2027-02","回团日期":"","进出点晚数":"IKT-7N","航司":"CA","出发城市":"PEK","K位数":21,"价格":1200.0,"税金":0,"合计":1200.0,"供应商":"国航系列","备注":"IBJS26707080","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"","出发日期":"2027-02-26","出发月份":"2027-02","回团日期":"","进出点晚数":"MAD-BCN-12N","航司":"CA","出发城市":"PEK","K位数":26,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670708L","票务对接人":"尹航","出团月份":"2027-02"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-02-27","出发月份":"2027-02","回团日期":"2027-03-10","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS267070SE","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-03-04","出发月份":"2027-03","回团日期":"2027-03-14","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS267070HG","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-03-06","出发月份":"2027-03","回团日期":"2027-03-17","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS267070SF","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-03-06","出发月份":"2027-03","回团日期":"","进出点晚数":"IKT-7N","航司":"CA","出发城市":"PEK","K位数":21,"价格":1100.0,"税金":0,"合计":1100.0,"供应商":"国航系列","备注":"IBJS26707081","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-03-08","出发月份":"2027-03","回团日期":"","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS26707076","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"","出发日期":"2027-03-11","出发月份":"2027-03","回团日期":"","进出点晚数":"BCN-MAD-12N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2300.0,"税金":3100.0,"合计":5400.0,"供应商":"国航系列","备注":"IBJS2670905J","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-03-13","出发月份":"2027-03","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS2670708U","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"自营","出发日期":"2027-03-14","出发月份":"2027-03","回团日期":"","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":26,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670708J","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-03-14","出发月份":"2027-03","回团日期":"","进出点晚数":"FCO-CDG-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2600.0,"税金":0,"合计":2600.0,"供应商":"国航系列","备注":"IBJS2670905B","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"北欧","产品线":"","出发日期":"2027-03-15","出发月份":"2027-03","回团日期":"","进出点晚数":"ARN-CPH-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":1800.0,"税金":3750.0,"合计":5550.0,"供应商":"国航系列","备注":"IBJS2681904U","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-03-21","出发月份":"2027-03","回团日期":"","进出点晚数":"VIE-9N","航司":"CA","出发城市":"PEK","K位数":21,"价格":1800.0,"税金":0,"合计":1800.0,"供应商":"国航系列","备注":"IBJS2670709Y","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-03-23","出发月份":"2027-03","回团日期":"","进出点晚数":"BUD-VIE-10N","航司":"CA","出发城市":"PEK","K位数":21,"价格":1800.0,"税金":0,"合计":1800.0,"供应商":"国航系列","备注":"IBJS2670704P","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"王瑀","采购渠道":"携程","方向":"英国","产品线":"","出发日期":"2027-03-26","出发月份":"2027-03","回团日期":"","进出点晚数":"LHR-8N","航司":"CA","出发城市":"PEK","K位数":17,"价格":1600.0,"税金":0,"合计":1600.0,"供应商":"国航系列","备注":"IBJS26707084","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-03-27","出发月份":"2027-03","回团日期":"2027-04-07","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS267070T1","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-03-27","出发月份":"2027-03","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS2670708W","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯","出发日期":"2027-03-28","出发月份":"2027-03","回团日期":"2027-04-08","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS267070T2","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"自营","出发日期":"2027-03-28","出发月份":"2027-03","回团日期":"","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":26,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670708K","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"云巅","出发日期":"2027-03-29","出发月份":"2027-03","回团日期":"2027-04-09","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2000.0,"税金":0,"合计":2000.0,"供应商":"国航系列","备注":"IBJS267070T5","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"","出发日期":"2027-03-30","出发月份":"2027-03","回团日期":"","进出点晚数":"BCN-MAD-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":2300.0,"税金":3100.0,"合计":5400.0,"供应商":"国航系列","备注":"IBJS2681903G","票务对接人":"尹航","出团月份":"2027-03"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"","出发日期":"2027-04-09","出发月份":"2027-04","回团日期":"","进出点晚数":"MAD-BCN-12N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3150.0,"税金":0,"合计":3150.0,"供应商":"国航系列","备注":"IBJS2670708M","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯","出发日期":"2027-04-09","出发月份":"2027-04","回团日期":"2027-04-21","进出点晚数":"FCO-CDG-11N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS267070Y8","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-04-10","出发月份":"2027-04","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3200.0,"税金":0,"合计":3200.0,"供应商":"国航系列","备注":"IBJS2670708R","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"北欧","产品线":"","出发日期":"2027-04-10","出发月份":"2027-04","回团日期":"","进出点晚数":"ARN-CPH-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":2200.0,"税金":3750.0,"合计":5950.0,"供应商":"国航系列","备注":"IBJS2681904R","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-04-12","出发月份":"2027-04","回团日期":"","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS26707071","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-04-12","出发月份":"2027-04","回团日期":"","进出点晚数":"BUD-VIE-10N","航司":"CA","出发城市":"PEK","K位数":21,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670704Q","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"北欧","产品线":"","出发日期":"2027-04-12","出发月份":"2027-04","回团日期":"","进出点晚数":"KEF-7N","航司":"CA","出发城市":"PEK","K位数":26,"价格":4000.0,"税金":0,"合计":4000.0,"供应商":"国航系列","备注":"IBJS26819037","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯","出发日期":"2027-04-14","出发月份":"2027-04","回团日期":"2027-04-25","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070OH","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-04-15","出发月份":"2027-04","回团日期":"","进出点晚数":"FCO-CDG-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS26707077","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-04-17","出发月份":"2027-04","回团日期":"2027-04-28","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070U5","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"自营","出发日期":"2027-04-18","出发月份":"2027-04","回团日期":"","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3150.0,"税金":0,"合计":3150.0,"供应商":"国航系列","备注":"IBJS26707088","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-04-18","出发月份":"2027-04","回团日期":"","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2670705Y","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-04-20","出发月份":"2027-04","回团日期":"","进出点晚数":"CDG-FCO-11N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2682002P","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-04-21","出发月份":"2027-04","回团日期":"","进出点晚数":"FCO-CDG-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2670707W","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"携程","方向":"英国","产品线":"","出发日期":"2027-04-22","出发月份":"2027-04","回团日期":"","进出点晚数":"LHR-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS26707086","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"北欧","产品线":"","出发日期":"2027-04-22","出发月份":"2027-04","回团日期":"","进出点晚数":"KEF-CPH-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2681902I","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-04-24","出发月份":"2027-04","回团日期":"2027-05-05","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3600.0,"税金":0,"合计":3600.0,"供应商":"国航系列","备注":"IBJS267070UI","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-04-24","出发月份":"2027-04","回团日期":"","进出点晚数":"SVO-6N","航司":"CA","出发城市":"PEK","K位数":20,"价格":2500.0,"税金":0,"合计":2500.0,"供应商":"国航系列","备注":"IBJS2670709C","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-04-24","出发月份":"2027-04","回团日期":"","进出点晚数":"VVO-IKT-8N","航司":"CA","出发城市":"PEK","K位数":21,"价格":1300.0,"税金":0,"合计":1300.0,"供应商":"国航系列","备注":"IBJS2670709Z","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"携程","方向":"英国","产品线":"","出发日期":"2027-04-24","出发月份":"2027-04","回团日期":"","进出点晚数":"LHR-8N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2670905G","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-04-24","出发月份":"2027-04","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3400.0,"税金":0,"合计":3400.0,"供应商":"国航系列","备注":"IBJS26820032","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-04-25","出发月份":"2027-04","回团日期":"","进出点晚数":"VIE-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS2670709T","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"携程","方向":"北欧","产品线":"","出发日期":"2027-04-25","出发月份":"2027-04","回团日期":"","进出点晚数":"ARN-CPH-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2800.0,"税金":3750.0,"合计":6550.0,"供应商":"国航系列","备注":"IBJS2682002W","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"云巅","出发日期":"2027-04-26","出发月份":"2027-04","回团日期":"2027-05-07","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3600.0,"税金":0,"合计":3600.0,"供应商":"国航系列","备注":"IBJS267070UJ","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"携程","方向":"北欧","产品线":"","出发日期":"2027-04-27","出发月份":"2027-04","回团日期":"","进出点晚数":"ARN-CPH-10N","航司":"CA","出发城市":"PEK","K位数":25,"价格":2800.0,"税金":3750.0,"合计":6550.0,"供应商":"国航系列","备注":"IBJS2682002X","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-04-28","出发月份":"2027-04","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3400.0,"税金":0,"合计":3400.0,"供应商":"国航系列","备注":"IBJS26820033","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-04-29","出发月份":"2027-04","回团日期":"2027-05-09","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3650.0,"税金":0,"合计":3650.0,"供应商":"国航系列","备注":"IBJS267070I2","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"","出发日期":"2027-04-29","出发月份":"2027-04","回团日期":"","进出点晚数":"BCN-MAD-12N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3650.0,"税金":3100.0,"合计":6750.0,"供应商":"国航系列","备注":"IBJS2670905M","票务对接人":"尹航","出团月份":"2027-04"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-05-02","出发月份":"2027-05","回团日期":"2027-05-12","进出点晚数":"MAD-BCN-9N","航司":"CA-WUH","出发城市":"PEK","K位数":31,"价格":3150.0,"税金":0,"合计":3150.0,"供应商":"武汉国航","备注":"IWUH2670704Z","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-04","出发月份":"2027-05","回团日期":"","进出点晚数":"FCO-CDG-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2670707X","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯","出发日期":"2027-05-09","出发月份":"2027-05","回团日期":"2027-05-20","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070OL","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-10","出发月份":"2027-05","回团日期":"","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS26707073","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-05-11","出发月份":"2027-05","回团日期":"","进出点晚数":"BUD-VIE-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670704S","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-05-13","出发月份":"2027-05","回团日期":"2027-05-23","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3150.0,"税金":0,"合计":3150.0,"供应商":"国航系列","备注":"IBJS267070I3","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-05-15","出发月份":"2027-05","回团日期":"2027-05-26","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070VS","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-15","出发月份":"2027-05","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3200.0,"税金":0,"合计":3200.0,"供应商":"国航系列","备注":"IBJS2670708T","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-15","出发月份":"2027-05","回团日期":"","进出点晚数":"CDG-FCO-11N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2682002Q","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-05-16","出发月份":"2027-05","回团日期":"","进出点晚数":"VIE-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670709V","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-05-16","出发月份":"2027-05","回团日期":"","进出点晚数":"SVO-6N","航司":"CA","出发城市":"PEK","K位数":26,"价格":1800.0,"税金":0,"合计":1800.0,"供应商":"国航系列","备注":"IBJS26707096","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"云巅","出发日期":"2027-05-17","出发月份":"2027-05","回团日期":"2027-05-28","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070X3","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-18","出发月份":"2027-05","回团日期":"","进出点晚数":"MXP-CDG-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2670708Z","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-21","出发月份":"2027-05","回团日期":"","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2670706Q","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-05-22","出发月份":"2027-05","回团日期":"2027-06-02","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070VF","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"","出发日期":"2027-05-22","出发月份":"2027-05","回团日期":"","进出点晚数":"BCN-MAD-12N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3150.0,"税金":3100.0,"合计":6250.0,"供应商":"国航系列","备注":"IBJS2670704K","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-05-25","出发月份":"2027-05","回团日期":"","进出点晚数":"BUD-VIE-10N","航司":"CA","出发城市":"PEK","K位数":21,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670704N","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"英国","产品线":"","出发日期":"2027-05-25","出发月份":"2027-05","回团日期":"","进出点晚数":"LHR-8N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS26819041","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-25","出发月份":"2027-05","回团日期":"","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS26820036","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯","出发日期":"2027-05-26","出发月份":"2027-05","回团日期":"2027-06-06","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070OJ","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"自营","出发日期":"2027-05-28","出发月份":"2027-05","回团日期":"","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3150.0,"税金":0,"合计":3150.0,"供应商":"国航系列","备注":"IBJS26707089","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"携程","方向":"英国","产品线":"","出发日期":"2027-05-28","出发月份":"2027-05","回团日期":"","进出点晚数":"LHR-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS26707087","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-28","出发月份":"2027-05","回团日期":"","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2670705Z","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-05-29","出发月份":"2027-05","回团日期":"2027-06-09","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070VH","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-29","出发月份":"2027-05","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":21,"价格":3200.0,"税金":0,"合计":3200.0,"供应商":"国航系列","备注":"IBJS2670708Y","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-05-29","出发月份":"2027-05","回团日期":"","进出点晚数":"VVO-IKT-8N","航司":"CA","出发城市":"PEK","K位数":21,"价格":850.0,"税金":0,"合计":850.0,"供应商":"国航系列","备注":"IBJS267070A1","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-05-30","出发月份":"2027-05","回团日期":"","进出点晚数":"VIE-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670709S","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼阿尔卑斯  26机位","出发日期":"2027-05-30","出发月份":"2027-05","回团日期":"","进出点晚数":"CDG-FCO-11N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2681903Z","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-05-30","出发月份":"2027-05","回团日期":"","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS26820037","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"携程","方向":"北欧","产品线":"","出发日期":"2027-05-31","出发月份":"2027-05","回团日期":"","进出点晚数":"KEF-CPH-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS26820034","票务对接人":"尹航","出团月份":"2027-05"},{"归属人":"王瑀","采购渠道":"携程","方向":"北欧","产品线":"","出发日期":"2027-06-03","出发月份":"2027-06","回团日期":"","进出点晚数":"KEF-CPH-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS26820035","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-06-04","出发月份":"2027-06","回团日期":"2027-06-14","进出点晚数":"BCN-MAD-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3150.0,"税金":3100.0,"合计":6250.0,"供应商":"国航系列","备注":"IBJS267070BE","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-06-05","出发月份":"2027-06","回团日期":"2027-06-16","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070VT","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"北欧","产品线":"","出发日期":"2027-06-05","出发月份":"2027-06","回团日期":"","进出点晚数":"ARN-CPH-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2200.0,"税金":3750.0,"合计":5950.0,"供应商":"国航系列","备注":"IBJS2670704I","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"瑞不可挡","出发日期":"2027-06-05","出发月份":"2027-06","回团日期":"","进出点晚数":"FCO-CDG-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2670707Y","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"北欧","产品线":"","出发日期":"2027-06-07","出发月份":"2027-06","回团日期":"","进出点晚数":"KEF-7N","航司":"CA","出发城市":"PEK","K位数":31,"价格":4500.0,"税金":0,"合计":4500.0,"供应商":"国航系列","备注":"IBJS2681903I","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-08","出发月份":"2027-06","回团日期":"","进出点晚数":"FCO-CDG-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2670707V","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-06-11","出发月份":"2027-06","回团日期":"2027-06-21","进出点晚数":"BCN-MAD-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3150.0,"税金":3100.0,"合计":6250.0,"供应商":"国航系列","备注":"IBJS267070BK","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-06-12","出发月份":"2027-06","回团日期":"2027-06-23","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070VE","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-12","出发月份":"2027-06","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3200.0,"税金":0,"合计":3200.0,"供应商":"国航系列","备注":"IBJS2670708V","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-06-13","出发月份":"2027-06","回团日期":"","进出点晚数":"VIE-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670709U","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-06-13","出发月份":"2027-06","回团日期":"","进出点晚数":"SVO-6N","航司":"CA","出发城市":"PEK","K位数":26,"价格":1800.0,"税金":0,"合计":1800.0,"供应商":"国航系列","备注":"IBJS26707099","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-14","出发月份":"2027-06","回团日期":"","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS26707074","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"法意","出发日期":"2027-06-15","出发月份":"2027-06","回团日期":"2027-06-27","进出点晚数":"FCO-CDG-11N","航司":"CA-WUH","出发城市":"PEK","K位数":26,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"武汉国航","备注":"IWUH26707047","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深","出发日期":"2027-06-17","出发月份":"2027-06","回团日期":"2027-06-28","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3250.0,"税金":3230.0,"合计":6480.0,"供应商":"国航系列","备注":"IBJS267070Y4","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"英国","产品线":"","出发日期":"2027-06-17","出发月份":"2027-06","回团日期":"","进出点晚数":"LHR-8N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS26819043","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"自营","出发日期":"2027-06-18","出发月份":"2027-06","回团日期":"","进出点晚数":"MAD-BCN-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3150.0,"税金":0,"合计":3150.0,"供应商":"国航系列","备注":"IBJS2670708A","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-06-19","出发月份":"2027-06","回团日期":"","进出点晚数":"SVO-6N","航司":"CA","出发城市":"PEK","K位数":26,"价格":1800.0,"税金":0,"合计":1800.0,"供应商":"国航系列","备注":"IBJS2670709A","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-06-19","出发月份":"2027-06","回团日期":"","进出点晚数":"VVO-IKT-8N","航司":"CA","出发城市":"PEK","K位数":21,"价格":900.0,"税金":0,"合计":900.0,"供应商":"国航系列","备注":"IBJS267070A2","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"巡礼德法意瑞","出发日期":"2027-06-20","出发月份":"2027-06","回团日期":"2027-07-01","进出点晚数":"FCO-CDG-10N","航司":"CA-WUH","出发城市":"PEK","K位数":26,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"武汉国航","备注":"IWUH26707046","票务对接人":"尹航","出团月份":"2027-07"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-06-20","出发月份":"2027-06","回团日期":"","进出点晚数":"SVO-6N","航司":"CA","出发城市":"PEK","K位数":26,"价格":1800.0,"税金":0,"合计":1800.0,"供应商":"国航系列","备注":"IBJS26707097","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"东欧","产品线":"圆梦帝国","出发日期":"2027-06-20","出发月份":"2027-06","回团日期":"","进出点晚数":"BUD-VIE-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2681902D","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"英国","产品线":"","出发日期":"2027-06-20","出发月份":"2027-06","回团日期":"","进出点晚数":"LHR-14N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS2681904J","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"云巅","出发日期":"2027-06-21","出发月份":"2027-06","回团日期":"2027-07-02","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070XU","票务对接人":"尹航","出团月份":"2027-07"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-22","出发月份":"2027-06","回团日期":"","进出点晚数":"CDG-FCO-11N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2670706I","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-22","出发月份":"2027-06","回团日期":"","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":26,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2682003C","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"南欧","产品线":"","出发日期":"2027-06-24","出发月份":"2027-06","回团日期":"","进出点晚数":"BCN-MAD-12N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3150.0,"税金":3100.0,"合计":6250.0,"供应商":"国航系列","备注":"IBJS2670905K","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"英国","产品线":"","出发日期":"2027-06-24","出发月份":"2027-06","回团日期":"","进出点晚数":"LHR-8N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS26819044","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"南欧","产品线":"自营","出发日期":"2027-06-25","出发月份":"2027-06","回团日期":"2027-07-05","进出点晚数":"BCN-MAD-9N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3150.0,"税金":3100.0,"合计":6250.0,"供应商":"国航系列","备注":"IBJS267070BF","票务对接人":"尹航","出团月份":"2027-07"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-06-26","出发月份":"2027-06","回团日期":"","进出点晚数":"VVO-IKT-8N","航司":"CA","出发城市":"PEK","K位数":21,"价格":900.0,"税金":0,"合计":900.0,"供应商":"国航系列","备注":"IBJS267070A0","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-26","出发月份":"2027-06","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3200.0,"税金":0,"合计":3200.0,"供应商":"国航系列","备注":"IBJS2682002Z","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-06-27","出发月份":"2027-06","回团日期":"","进出点晚数":"VIE-9N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2670709W","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"瑞不可挡","出发日期":"2027-06-27","出发月份":"2027-06","回团日期":"","进出点晚数":"FCO-CDG-10N","航司":"CA","出发城市":"PEK","K位数":30,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2670707Z","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"俄罗斯","产品线":"","出发日期":"2027-06-27","出发月份":"2027-06","回团日期":"","进出点晚数":"SVO-6N","航司":"CA","出发城市":"PEK","K位数":26,"价格":1800.0,"税金":0,"合计":1800.0,"供应商":"国航系列","备注":"IBJS26707098","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-27","出发月份":"2027-06","回团日期":"","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS26820038","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-28","出发月份":"2027-06","回团日期":"","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS26707072","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"","产品线":"","出发日期":"2027-06-28","出发月份":"2027-06","回团日期":"","进出点晚数":"FCO-CDG-11N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2682002S","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"王瑀","采购渠道":"携程","方向":"英国","产品线":"","出发日期":"2027-06-29","出发月份":"2027-06","回团日期":"","进出点晚数":"LHR-8N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS26707085","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"东欧","产品线":"","出发日期":"2027-06-29","出发月份":"2027-06","回团日期":"","进出点晚数":"BUD-VIE-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":2300.0,"税金":0,"合计":2300.0,"供应商":"国航系列","备注":"IBJS2682002Y","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-29","出发月份":"2027-06","回团日期":"","进出点晚数":"FCO-CDG-11N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2682002U","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"华程转自营","方向":"西欧","产品线":"意味情深-自营","出发日期":"2027-06-30","出发月份":"2027-06","回团日期":"2027-07-11","进出点晚数":"CDG-MXP-10N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS267070VI","票务对接人":"尹航","出团月份":"2027-07"},{"归属人":"王瑀","采购渠道":"华程转自营","方向":"英国","产品线":"","出发日期":"2027-06-30","出发月份":"2027-06","回团日期":"","进出点晚数":"LHR-8N","航司":"CA","出发城市":"PEK","K位数":31,"价格":3000.0,"税金":0,"合计":3000.0,"供应商":"国航系列","备注":"IBJS26819042","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-30","出发月份":"2027-06","回团日期":"","进出点晚数":"MXP-10N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3200.0,"税金":0,"合计":3200.0,"供应商":"国航系列","备注":"IBJS26820031","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-30","出发月份":"2027-06","回团日期":"","进出点晚数":"FCO-CDG-11N","航司":"CA","出发城市":"PEK","K位数":27,"价格":3500.0,"税金":0,"合计":3500.0,"供应商":"国航系列","备注":"IBJS2682002T","票务对接人":"尹航","出团月份":"2027-06"},{"归属人":"孔艾珊","采购渠道":"携程","方向":"西欧","产品线":"","出发日期":"2027-06-30","出发月份":"2027-06","回团日期":"","进出点晚数":"CDG-FCO-10N","航司":"CA","出发城市":"PEK","K位数":25,"价格":3250.0,"税金":0,"合计":3250.0,"供应商":"国航系列","备注":"IBJS2682003B","票务对接人":"尹航","出团月份":"2027-06"}];
+const PRICE_BINS = [["≤2,000", 0, 2000], ["2,001-3,000", 2001, 3000], ["3,001-4,000", 3001, 4000], ["4,001-5,000", 4001, 5000], ["5,001-6,000", 5001, 6000], ["6,001-7,000", 6001, 7000], [">7,000", 7001, 999999]];
+
+let currentPage = 1;
+const PAGE_SIZE = 15;
+let filteredData = [...RAW_DATA];
+let sortKey = '';
+let sortAsc = true;
+
+function initFilters() {
+  const directions = [...new Set(RAW_DATA.map(d => d.方向).filter(Boolean))].sort();
+  const months = [...new Set(RAW_DATA.map(d => d.出发月份).filter(Boolean))].sort();
+  const airlines = [...new Set(RAW_DATA.map(d => d.航司).filter(Boolean))].sort();
+
+  const selDir = document.getElementById('filterDirection');
+  directions.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; selDir.appendChild(o); });
+
+  const selMon = document.getElementById('filterMonth');
+  months.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; selMon.appendChild(o); });
+
+  const selAir = document.getElementById('filterAirline');
+  airlines.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; selAir.appendChild(o); });
+}
+
+function animateValue(id, end, duration = 1200) {
+  const el = document.getElementById(id);
+  const startTime = performance.now();
+  function update(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    const val = Math.floor(end * ease);
+    el.textContent = val.toLocaleString();
+    if (t < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+function initKPI() {
+  const totalK = RAW_DATA.reduce((s, d) => s + d.K位数, 0);
+  const totalAmt = RAW_DATA.reduce((s, d) => s + d.合计, 0);
+  const totalTax = RAW_DATA.reduce((s, d) => s + d.税金, 0);
+  const avg = totalK > 0 ? Math.round(totalAmt / totalK) : 0;
+  animateValue('kpi-k', totalK);
+  animateValue('kpi-amount', totalAmt);
+  animateValue('kpi-count', RAW_DATA.length);
+  animateValue('kpi-avg', avg);
+  animateValue('kpi-tax', totalTax);
+}
+
+function initChartMonth() {
+  const months = [...new Set(RAW_DATA.map(d => d.出发月份).filter(Boolean))].sort();
+  const kData = months.map(m => RAW_DATA.filter(d => d.出发月份 === m).reduce((s, d) => s + d.K位数, 0));
+  const amtData = months.map(m => RAW_DATA.filter(d => d.出发月份 === m).reduce((s, d) => s + d.合计, 0));
+
+  const chart = echarts.init(document.getElementById('chartMonth'));
+  chart.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#1e293b' } },
+    legend: { data: ['K位数', '采购金额'], textStyle: { color: '#475569' }, top: 0 },
+    grid: { left: '3%', right: '3%', bottom: '3%', top: '14%', containLabel: true },
+    xAxis: { type: 'category', data: months.map(m => m.slice(5) + '月'), axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569' } },
+    yAxis: [
+      { type: 'value', name: 'K位数', position: 'left', axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569' }, splitLine: { lineStyle: { color: '#e2e8f0' } } },
+      { type: 'value', name: '金额(元)', position: 'right', axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569', formatter: v => (v/10000).toFixed(1) + '万' }, splitLine: { show: false } }
+    ],
+    series: [
+      { name: 'K位数', type: 'bar', data: kData, itemStyle: { borderRadius: [4, 4, 0, 0], color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#3b82f6' }, { offset: 1, color: '#1d4ed8' }]) }, barWidth: '35%' },
+      { name: '采购金额', type: 'line', yAxisIndex: 1, data: amtData, smooth: true, symbol: 'circle', symbolSize: 8, lineStyle: { width: 3, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(245,158,11,0.25)' }, { offset: 1, color: 'rgba(245,158,11,0)' }]) } }
+    ]
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+function initChartMonthDir() {
+  const months = [...new Set(RAW_DATA.map(d => d.出发月份).filter(Boolean))].sort();
+  const directions = [...new Set(RAW_DATA.map(d => d.方向).filter(Boolean))].sort();
+  const colors = {'西欧':'#3b82f6', '南欧':'#10b981', '东欧':'#8b5cf6', '北欧':'#06b6d4', '英国':'#f59e0b', '俄罗斯':'#ec4899'};
+
+  const series = directions.map(dir => ({
+    name: dir,
+    type: 'bar',
+    data: months.map(m => RAW_DATA.filter(d => d.出发月份 === m && d.方向 === dir).reduce((s, d) => s + d.K位数, 0)),
+    itemStyle: { color: colors[dir] || '#94a3b8', borderRadius: [4, 4, 0, 0] },
+    barMaxWidth: 28,
+    label: { show: true, position: 'top', color: '#475569', fontSize: 10, formatter: p => p.value > 0 ? p.value : '' },
+    emphasis: { focus: 'series' }
+  }));
+
+  const chart = echarts.init(document.getElementById('chartMonthDir'));
+  chart.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#1e293b' } },
+    legend: { textStyle: { color: '#475569' }, top: 0 },
+    grid: { left: '3%', right: '3%', bottom: '3%', top: '14%', containLabel: true },
+    xAxis: { type: 'category', data: months.map(m => m.slice(5) + '月'), axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569' } },
+    yAxis: { type: 'value', name: 'K位数', axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569' }, splitLine: { lineStyle: { color: '#e2e8f0' } } },
+    series: series
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+function initChartDirection() {
+  const dirs = {};
+  RAW_DATA.forEach(d => { dirs[d.方向] = (dirs[d.方向] || 0) + d.K位数; });
+  const items = Object.entries(dirs).filter(([k]) => k).sort((a, b) => b[1] - a[1]);
+  const colors = ['#3b82f6', '#10b981', '#ec4899', '#8b5cf6', '#06b6d4', '#f59e0b'];
+
+  const chart = echarts.init(document.getElementById('chartDirection'));
+  chart.setOption({
+    tooltip: { trigger: 'item', backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#1e293b' }, formatter: '{b}: {c}个 ({d}%)' },
+    legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#475569', fontSize: 11 }, itemWidth: 10, itemHeight: 10 },
+    series: [{
+      type: 'pie', radius: ['40%', '70%'], center: ['35%', '50%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 6, borderColor: '#ffffff', borderWidth: 2 },
+      label: { show: false },
+      emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold', color: '#1e293b' } },
+      data: items.map(([name, val], i) => ({ value: val, name, itemStyle: { color: colors[i % colors.length] } }))
+    }]
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+function initChartDirectionAmount() {
+  const dirs = {};
+  RAW_DATA.forEach(d => { dirs[d.方向] = (dirs[d.方向] || 0) + d.合计; });
+  const items = Object.entries(dirs).filter(([k]) => k).sort((a, b) => b[1] - a[1]);
+  const colors = ['#3b82f6', '#10b981', '#ec4899', '#8b5cf6', '#06b6d4', '#f59e0b'];
+
+  const chart = echarts.init(document.getElementById('chartDirectionAmount'));
+  chart.setOption({
+    tooltip: { trigger: 'item', backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#1e293b' }, formatter: p => '{b}: ' + (p.value/10000).toFixed(1) + '万 ({d}%)' },
+    legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#475569', fontSize: 11 }, itemWidth: 10, itemHeight: 10 },
+    series: [{
+      type: 'pie', radius: ['40%', '70%'], center: ['35%', '50%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 6, borderColor: '#ffffff', borderWidth: 2 },
+      label: { show: false },
+      emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold', color: '#1e293b' } },
+      data: items.map(([name, val], i) => ({ value: val, name, itemStyle: { color: colors[i % colors.length] } }))
+    }]
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+function initChartChannel() {
+  const ch = {};
+  RAW_DATA.forEach(d => { ch[d.采购渠道] = (ch[d.采购渠道] || 0) + d.K位数; });
+  const items = Object.entries(ch).filter(([k]) => k).sort((a, b) => b[1] - a[1]);
+
+  const chart = echarts.init(document.getElementById('chartChannel'));
+  chart.setOption({
+    tooltip: { trigger: 'axis', backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#1e293b' } },
+    grid: { left: '3%', right: '8%', bottom: '3%', top: '8%', containLabel: true },
+    xAxis: { type: 'value', axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569' }, splitLine: { lineStyle: { color: '#e2e8f0' } } },
+    yAxis: { type: 'category', data: items.map(i => i[0]), axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569' } },
+    series: [{
+      type: 'bar', data: items.map(i => i[1]),
+      itemStyle: { borderRadius: [0, 4, 4, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#f59e0b' }, { offset: 1, color: '#d97706' }]) },
+      barWidth: '50%',
+      label: { show: true, position: 'right', color: '#e2e8f0', formatter: '{c}个' }
+    }]
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+function initChartAirline() {
+  const al = {};
+  RAW_DATA.forEach(d => { al[d.航司] = (al[d.航司] || 0) + d.K位数; });
+  const items = Object.entries(al).filter(([k]) => k).sort((a, b) => b[1] - a[1]);
+  const colors = ['#06b6d4', '#22d3ee', '#67e8f9'];
+
+  const chart = echarts.init(document.getElementById('chartAirline'));
+  chart.setOption({
+    tooltip: { trigger: 'axis', backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#1e293b' } },
+    grid: { left: '3%', right: '8%', bottom: '3%', top: '8%', containLabel: true },
+    xAxis: { type: 'value', axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569' }, splitLine: { lineStyle: { color: '#e2e8f0' } } },
+    yAxis: { type: 'category', data: items.map(i => i[0]), axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569' } },
+    series: [{
+      type: 'bar', data: items.map((i, idx) => ({ value: i[1], itemStyle: { color: colors[idx % colors.length] } })),
+      itemStyle: { borderRadius: [0, 4, 4, 0] },
+      barWidth: '50%',
+      label: { show: true, position: 'right', color: '#e2e8f0', formatter: '{c}个' }
+    }]
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+let priceActiveMonth = '全部';
+let priceActiveDir = '全部';
+
+function initPriceFilters() {
+  const months = ['全部', ...[...new Set(RAW_DATA.map(d => d.出团月份).filter(Boolean))].sort()];
+  const dirs = ['全部', ...[...new Set(RAW_DATA.map(d => d.方向).filter(Boolean))].sort()];
+  
+  const mEl = document.getElementById('priceMonthTabs');
+  const dEl = document.getElementById('priceDirTabs');
+  
+  function renderTabs(el, items, active, onClick) {
+    el.innerHTML = items.map(item => {
+      const cls = item === active ? 'dir-month-tab active' : 'dir-month-tab';
+      return '<span class="' + cls + '" data-val="' + item + '">' + item + '</span>';
+    }).join('');
+    el.querySelectorAll('.dir-month-tab').forEach(tab => {
+      tab.addEventListener('click', () => onClick(tab.dataset.val));
+    });
+  }
+  
+  renderTabs(mEl, months, priceActiveMonth, val => { priceActiveMonth = val; updatePriceSection(); });
+  renderTabs(dEl, dirs, priceActiveDir, val => { priceActiveDir = val; updatePriceSection(); });
+}
+
+function updatePriceSection() {
+  let filtered = RAW_DATA;
+  if (priceActiveMonth !== '全部') filtered = filtered.filter(d => d.出团月份 === priceActiveMonth);
+  if (priceActiveDir !== '全部') filtered = filtered.filter(d => d.方向 === priceActiveDir);
+  
+  // Update bins HTML
+  const binsEl = document.getElementById('priceBins');
+  let html = '';
+  const barData = [];
+  PRICE_BINS.forEach(([label, lo, hi]) => {
+    const count = filtered.filter(d => d.合计 >= lo && d.合计 <= hi).length;
+    const ksum = filtered.filter(d => d.合计 >= lo && d.合计 <= hi).reduce((s, d) => s + d.K位数, 0);
+    html += '<div class="price-bin"><div class="price-bin-count">' + count + '</div><div class="price-bin-k">' + ksum + '个</div><div class="price-bin-range">' + label + '</div></div>';
+    barData.push(count);
+  });
+  binsEl.innerHTML = html;
+  
+  // Update chart
+  const chart = echarts.init(document.getElementById('chartPrice'));
+  const labels = PRICE_BINS.map(b => b[0]);
+  chart.setOption({
+    tooltip: { trigger: 'axis', backgroundColor: '#ffffff', borderColor: '#e2e8f0', textStyle: { color: '#1e293b' } },
+    grid: { left: '3%', right: '3%', bottom: '3%', top: '10%', containLabel: true },
+    xAxis: { type: 'category', data: labels, axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569', fontSize: 11 } },
+    yAxis: { type: 'value', name: '团数', axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: { color: '#475569' }, splitLine: { lineStyle: { color: '#e2e8f0' } } },
+    series: [{
+      type: 'bar',
+      data: barData,
+      itemStyle: { borderRadius: [4, 4, 0, 0], color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#ef4444' }, { offset: 1, color: '#b91c1c' }]) },
+      barWidth: '50%',
+      label: { show: true, position: 'top', color: '#475569' }
+    }]
+  });
+  window.addEventListener('resize', () => chart.resize());
+}
+
+function initPriceBins() {
+  initPriceFilters();
+  updatePriceSection();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = filteredData.slice(start, start + PAGE_SIZE);
+
+  tbody.innerHTML = pageData.map(row => `
+    <tr>
+      <td><span class="tag ${row.归属人 === '孔艾珊' ? 'tag-kong' : 'tag-wang'}">${row.归属人}</span></td>
+      <td><span class="tag tag-direction">${row.方向 || '-'}</span></td>
+      <td>${row.产品线 || '-'}</td>
+      <td class="num">${row.出发日期 || '-'}</td>
+      <td class="num">${row.出团月份 || '-'}</td>
+      <td class="num">${row.回团日期 || '-'}</td>
+      <td><span class="tag tag-city">${row.进出点晚数 || '-'}</span></td>
+      <td><span class="tag tag-airline">${row.航司 || '-'}</span></td>
+      <td><span class="tag tag-city">${row.出发城市 || '-'}</span></td>
+      <td class="num" style="text-align:right;font-weight:600;">${row.K位数 > 0 ? row.K位数 : '-'}</td>
+      <td class="num" style="text-align:right;">${row.价格 > 0 ? row.价格.toLocaleString() : '-'}</td>
+      <td class="num" style="text-align:right;">${row.税金 > 0 ? '<span class="tag tag-tax">+' + row.税金.toLocaleString() + '</span>' : '-'}</td>
+      <td class="num" style="text-align:right;font-weight:600;color:${row.合计 > 5000 ? '#f59e0b' : '#e2e8f0'};">${row.合计 > 0 ? row.合计.toLocaleString() : '-'}</td>
+      <td>${row.供应商 || '-'}</td>
+      <td>${row.采购渠道 || '-'}</td>
+    </tr>
+  `).join('');
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  document.getElementById('pageCurrent').textContent = currentPage;
+  document.getElementById('pageTotal').textContent = totalPages;
+  document.getElementById('recordsInfo').textContent = `共 ${filteredData.length} 条`;
+  document.getElementById('btnPrev').disabled = currentPage <= 1;
+  document.getElementById('btnNext').disabled = currentPage >= totalPages;
+}
+
+function applyFilters() {
+  const owner = document.getElementById('filterOwner').value;
+  const dir = document.getElementById('filterDirection').value;
+  const mon = document.getElementById('filterMonth').value;
+  const air = document.getElementById('filterAirline').value;
+  const search = document.getElementById('filterSearch').value.trim().toLowerCase();
+
+  filteredData = RAW_DATA.filter(d => {
+    if (owner && d.归属人 !== owner) return false;
+    if (dir && d.方向 !== dir) return false;
+    if (mon && d.出发月份 !== mon) return false;
+    if (air && d.航司 !== air) return false;
+    if (search) {
+      const hay = (d.产品线 + ' ' + d.备注 + ' ' + d.供应商 + ' ' + d.进出点晚数 + ' ' + d.方向).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  if (sortKey) {
+    filteredData.sort((a, b) => {
+      let av = a[sortKey], bv = b[sortKey];
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      if (av === '' || av == null) av = sortAsc ? '~~' : '';
+      if (bv === '' || bv == null) bv = sortAsc ? '~~' : '';
+      if (av < bv) return sortAsc ? -1 : 1;
+      if (av > bv) return sortAsc ? 1 : -1;
+      return 0;
+    });
+  }
+
+  currentPage = 1;
+  renderTable();
+}
+
+function sortTable(key) {
+  if (sortKey === key) { sortAsc = !sortAsc; }
+  else { sortKey = key; sortAsc = true; }
+
+  document.querySelectorAll('th').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+  const headers = document.querySelectorAll('th');
+  const keyMap = { '归属人': 0, '方向': 1, '产品线': 2, '出发日期': 3, '出团月份': 4, '回团日期': 5, '进出点晚数': 6, '航司': 7, '出发城市': 8, 'K位数': 9, '价格': 10, '税金': 11, '合计': 12, '供应商': 13, '采购渠道': 14 };
+  const idx = keyMap[key];
+  if (idx != null) headers[idx].classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
+
+  applyFilters();
+}
+
+function changePage(delta) {
+  currentPage += delta;
+  renderTable();
+}
+
+function resetFilters() {
+  document.getElementById('filterOwner').value = '';
+  document.getElementById('filterDirection').value = '';
+  document.getElementById('filterMonth').value = '';
+  document.getElementById('filterAirline').value = '';
+  document.getElementById('filterSearch').value = '';
+  sortKey = '';
+  document.querySelectorAll('th').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+  applyFilters();
+}
+
+['filterOwner', 'filterDirection', 'filterMonth', 'filterAirline'].forEach(id => {
+  document.getElementById(id).addEventListener('change', applyFilters);
+});
+document.getElementById('filterSearch').addEventListener('input', applyFilters);
+
+function initDirCards() {
+  const dirColors = {'西欧':'#3b82f6', '南欧':'#10b981', '东欧':'#8b5cf6', '北欧':'#06b6d4', '英国':'#f59e0b', '俄罗斯':'#ec4899'};
+  const allMonths = [...new Set(RAW_DATA.map(d => d.出发月份).filter(Boolean))].sort();
+  const allDirs = ['西欧','南欧','东欧','北欧','英国','俄罗斯'];
+
+  // 按月份+方向聚合
+  const monthDirMap = {};
+  RAW_DATA.forEach(d => {
+    const m = d.出发月份;
+    const dir = d.方向;
+    if (!m || !dir) return;
+    if (!monthDirMap[m]) monthDirMap[m] = {};
+    monthDirMap[m][dir] = (monthDirMap[m][dir] || 0) + d.K位数;
+  });
+
+  // 全部汇总
+  const totalDirMap = {};
+  RAW_DATA.forEach(d => {
+    const dir = d.方向;
+    if (!dir) return;
+    totalDirMap[dir] = (totalDirMap[dir] || 0) + d.K位数;
+  });
+
+  let activeMonth = '全部';
+
+  function renderMonthTabs() {
+    const tabsEl = document.getElementById('dirMonthTabs');
+    const months = ['全部', ...allMonths];
+    tabsEl.innerHTML = months.map(m => {
+      const label = m === '全部' ? '全部' : m.slice(5) + '月';
+      const cls = m === activeMonth ? 'dir-month-tab active' : 'dir-month-tab';
+      return `<div class="${cls}" data-month="${m}">${label}</div>`;
+    }).join('');
+
+    tabsEl.querySelectorAll('.dir-month-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        activeMonth = tab.dataset.month;
+        renderMonthTabs();
+        renderDirCards();
+      });
+    });
+  }
+
+  function renderDirCards() {
+    const container = document.getElementById('dirCards');
+    const dataMap = activeMonth === '全部' ? totalDirMap : (monthDirMap[activeMonth] || {});
+    const total = Object.values(dataMap).reduce((s, v) => s + v, 0);
+
+    container.innerHTML = allDirs.map(dir => {
+      const val = dataMap[dir] || 0;
+      const color = dirColors[dir] || '#94a3b8';
+      const pct = total > 0 ? Math.round(val / total * 100) : 0;
+      return `
+        <div class="dir-card">
+          <div class="dir-card-name" style="color:${color}">${dir}</div>
+          <div class="dir-card-num" style="color:${color}">${val.toLocaleString()}</div>
+          <div class="dir-card-unit">K位</div>
+          <div class="dir-card-total">占比 ${pct}% · 总计</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  renderMonthTabs();
+  renderDirCards();
+}
+
+function initCalendar() {
+  const dirColors = {'西欧':'#3b82f6', '南欧':'#10b981', '东欧':'#8b5cf6', '北欧':'#06b6d4', '英国':'#f59e0b', '俄罗斯':'#ec4899'};
+  const ownerColors = {'孔艾珊':'#3b82f6', '王瑀':'#f59e0b'};
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+  const allMonths = [...new Set(RAW_DATA.map(d => d.出发月份).filter(Boolean))].sort();
+
+  // 三种聚合维度的数据准备
+  const dateMapDir = {};
+  const dateMapOwner = {};
+  const dateMapRoute = {};
+  const routeColors = {};
+  const routeColorPool = ['#3b82f6','#10b981','#8b5cf6','#06b6d4','#f59e0b','#ec4899','#ef4444','#14b8a6','#f97316','#6366f1'];
+  let routeColorIdx = 0;
+
+  RAW_DATA.forEach(d => {
+    const date = d.出发日期;
+    if (!date) return;
+    // 按方向
+    if (!dateMapDir[date]) dateMapDir[date] = {};
+    const dir = d.方向 || '其他';
+    dateMapDir[date][dir] = (dateMapDir[date][dir] || 0) + d.K位数;
+    // 按归属人
+    if (!dateMapOwner[date]) dateMapOwner[date] = {};
+    const owner = d.归属人 || '其他';
+    dateMapOwner[date][owner] = (dateMapOwner[date][owner] || 0) + d.K位数;
+    // 按航线
+    if (!dateMapRoute[date]) dateMapRoute[date] = {};
+    const route = d.进出点晚数 || '其他';
+    dateMapRoute[date][route] = (dateMapRoute[date][route] || 0) + d.K位数;
+    if (!routeColors[route]) { routeColors[route] = routeColorPool[routeColorIdx % routeColorPool.length]; routeColorIdx++; }
+  });
+
+  const dimMap = {
+    '方向': { data: dateMapDir, colors: dirColors },
+    '归属人': { data: dateMapOwner, colors: ownerColors },
+    '航线': { data: dateMapRoute, colors: routeColors }
+  };
+
+  let activeMonth = allMonths[0];
+  let activeDim = '方向';
+
+  function renderMonthTabs() {
+    const tabsEl = document.getElementById('calendarTabs');
+    tabsEl.innerHTML = allMonths.map(m => {
+      const label = m.slice(0, 4) + '年' + m.slice(5) + '月';
+      const cls = m === activeMonth ? 'calendar-tab active' : 'calendar-tab';
+      return `<div class="${cls}" data-month="${m}">${label}</div>`;
+    }).join('');
+
+    tabsEl.querySelectorAll('.calendar-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        activeMonth = tab.dataset.month;
+        renderMonthTabs();
+        renderMonthCalendar(activeMonth);
+      });
+    });
+  }
+
+  function renderDimTabs() {
+    const subEl = document.getElementById('calendarSubTabs');
+    const dims = ['方向', '归属人', '航线'];
+    subEl.innerHTML = dims.map(d => {
+      const cls = d === activeDim ? 'calendar-subtab active' : 'calendar-subtab';
+      return `<span class="${cls}" data-dim="${d}">${d}</span>`;
+    }).join('');
+
+    subEl.querySelectorAll('.calendar-subtab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        activeDim = tab.dataset.dim;
+        renderDimTabs();
+        renderMonthCalendar(activeMonth);
+      });
+    });
+  }
+
+  function renderMonthCalendar(month) {
+    const panel = document.getElementById('calendarPanel');
+    const year = parseInt(month.slice(0, 4));
+    const mon = parseInt(month.slice(5, 7));
+    const firstDay = new Date(year, mon - 1, 1);
+    const lastDay = new Date(year, mon, 0);
+    const startWeekday = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+
+    const cfg = dimMap[activeDim];
+    const dateMap = cfg.data;
+    const colorMap = cfg.colors;
+
+    let html = '<div class="calendar-grid">';
+    weekDays.forEach(d => {
+      html += `<div class="calendar-header">${d}</div>`;
+    });
+
+    for (let i = 0; i < startWeekday; i++) {
+      html += '<div class="calendar-day empty"></div>';
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${month}-${String(day).padStart(2, '0')}`;
+      const items = dateMap[dateStr] || {};
+      const hasData = Object.keys(items).length > 0;
+      const totalK = Object.values(items).reduce((s, v) => s + v, 0);
+
+      html += '<div class="calendar-day">';
+      html += `<div class="calendar-day-number">${day}</div>`;
+      if (hasData) {
+        html += `<div class="calendar-day-total">合计 ${totalK}个</div>`;
+        html += '<div class="calendar-day-directions">';
+        Object.entries(items).sort((a, b) => b[1] - a[1]).forEach(([name, k]) => {
+          const color = colorMap[name] || '#94a3b8';
+          html += `<div class="calendar-dir-row"><span class="calendar-dir-dot" style="background:${color}"></span><span class="calendar-dir-name">${name}</span><span class="calendar-dir-k">${k}</span></div>`;
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+
+    html += '</div>';
+    panel.innerHTML = html;
+  }
+
+  renderMonthTabs();
+  renderDimTabs();
+  renderMonthCalendar(activeMonth);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initFilters();
+  initDirCards();
+  initCalendar();
+  initChartMonth();
+  initChartMonthDir();
+  initPriceBins();
+  renderTable();
+});
+</script>
+</body>
+</html>
